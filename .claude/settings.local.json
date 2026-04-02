@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -E \"\\\\.\\(tsx|ts\\)$\")",
+      "Bash(ls -1 /Users/marcobuonvino/Desktop/flowmapper-source/src/app/components/flowmapper/*.ts*)",
+      "Bash(grep -l \"exportSVG\\\\|exportPDF\\\\|exportProjectZip\" /Users/marcobuonvino/Desktop/flowmapper-source/src/app/components/flowmapper/*.tsx)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(echo $PATH)",
+      "Bash(mdfind -name node)",
+      "Bash(grep -E \"bin/node$\")",
+      "Bash(mdfind \"kMDItemDisplayName == ''''claude''''\")",
+      "Bash(npm install:*)",
+      "Bash(export PATH=\"/opt/homebrew/bin:$PATH\")",
+      "Bash(/opt/homebrew/bin/which npx:*)",
+      "Bash(/opt/homebrew/bin/node --version)",
+      "Bash(/opt/homebrew/bin/git init:*)",
+      "Bash(/opt/homebrew/bin/git add:*)",
+      "Bash(/opt/homebrew/bin/git commit:*)",
+      "Bash(PATH=/opt/homebrew/bin:/usr/bin:/bin)",
+      "Bash(mdfind \"kMDItemDisplayName == ''''git''''\")",
+      "Bash(grep \"bin/git$\")",
+      "Bash(/usr/bin/git init:*)",
+      "Bash(/usr/bin/git add:*)",
+      "Bash(/usr/bin/git commit:*)"
+    ]
+  }
+}
