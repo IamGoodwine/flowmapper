@@ -24,6 +24,7 @@ jobs:
           node-version: 22
 
       - run: npm install --legacy-peer-deps
+      - run: npm install react@18.3.1 react-dom@18.3.1
       - run: npm run build
 
       - uses: actions/upload-pages-artifact@v3
