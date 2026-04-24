@@ -270,6 +270,8 @@ export function VoiceToFlow({ theme: t, onConfirm, onClose }: VoiceToFlowProps) 
   const [preview, setPreview] = useState<VoiceFlowResult | null>(null);
 
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
+  // Text that was in the textarea BEFORE recording started — preserved across the session
+  const baseTextRef = useRef("");
   const hasSpeechSupport = !!createSpeechRecognition();
 
   // ── Speech ──────────────────────────────────────────────────────────────────
@@ -281,15 +283,31 @@ export function VoiceToFlow({ theme: t, onConfirm, onClose }: VoiceToFlowProps) 
     rec.interimResults = true;
     rec.lang = "it-IT";
 
+    // Snapshot the current textarea content so we can prepend it to speech results
+    // without relying on the stale `transcript` closure inside onresult.
+    baseTextRef.current = transcript.trim();
+
     rec.onresult = (e) => {
-      let final = transcript;
+      // Rebuild session text from ALL results in this session (avoids stale-closure issues).
+      // e.results contains every result since the session started, including past finals.
+      let sessionFinal = "";
       let interim = "";
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const t = e.results[i][0].transcript;
-        if (e.results[i].isFinal) final += (final ? " " : "") + t;
-        else interim = t;
+      for (let i = 0; i < e.results.length; i++) {
+        const chunk = e.results[i][0].transcript;
+        if (e.results[i].isFinal) {
+          sessionFinal += (sessionFinal ? " " : "") + chunk;
+        } else {
+          interim += chunk;
+        }
       }
-      setTranscript(final);
+
+      // Merge pre-recording text + new speech
+      const base = baseTextRef.current;
+      const combined = base
+        ? (sessionFinal ? base + " " + sessionFinal : base)
+        : sessionFinal;
+
+      setTranscript(combined);
       setInterimText(interim);
     };
 
@@ -298,7 +316,10 @@ export function VoiceToFlow({ theme: t, onConfirm, onClose }: VoiceToFlowProps) 
       setIsListening(false);
     };
 
-    rec.onend = () => setIsListening(false);
+    rec.onend = () => {
+      setIsListening(false);
+      setInterimText("");
+    };
 
     recognitionRef.current = rec;
     rec.start();
