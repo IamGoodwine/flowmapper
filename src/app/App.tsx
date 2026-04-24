@@ -2547,7 +2547,7 @@ function AppInner() {
 
 
         {/* Empty state */}
-        {screens.length === 0 && !loading && (
+        {screens.length === 0 && sections.length === 0 && !loading && (
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
             <div style={{ color: t.surfaceBorder, fontSize: 48 }}>&#x2B21;</div>
             <div className="mt-3 text-sm" style={{ color: t.textDim }}>
