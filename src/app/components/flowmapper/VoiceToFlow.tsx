@@ -19,8 +19,8 @@ interface VoiceToFlowProps {
 
 // ── Gemini API ────────────────────────────────────────────────────────────────
 
-const GEMINI_MODEL = "gemini-2.0-flash";
-const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+const GEMINI_MODELS = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-flash-latest"];
+const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 const LS_KEY = "flowmapper_gemini_key";
 
 const SYSTEM_PROMPT = `Sei un assistente esperto in UX che converte descrizioni verbali di flussi utente in JSON strutturato.
@@ -45,32 +45,42 @@ Regole:
 - Gli id devono essere stringhe univoche (s1, s2, ... per screen; c1, c2, ... per connessioni)
 - Restituisci SOLO il JSON grezzo, senza markdown, senza backtick, senza spiegazioni.`;
 
-async function callGemini(apiKey: string, transcript: string): Promise<VoiceFlowResult> {
-  const response = await fetch(`${GEMINI_ENDPOINT}?key=${apiKey}`, {
+async function callGeminiModel(apiKey: string, model: string, transcript: string): Promise<VoiceFlowResult> {
+  const response = await fetch(`${GEMINI_BASE}/${model}:generateContent?key=${apiKey}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      contents: [{
-        parts: [{
-          text: `${SYSTEM_PROMPT}\n\nTesto da analizzare:\n${transcript}`
-        }]
-      }],
-      generationConfig: {
-        temperature: 0.2,
-        maxOutputTokens: 4096,
-      }
+      contents: [{ parts: [{ text: `${SYSTEM_PROMPT}\n\nTesto da analizzare:\n${transcript}` }] }],
+      generationConfig: { temperature: 0.2, maxOutputTokens: 4096 }
     })
   });
 
   if (response.status === 429) throw new Error("RATE_LIMIT");
-  if (!response.ok) throw new Error(`GEMINI_ERROR:${response.status}`);
+  if (response.status === 404) throw new Error("MODEL_NOT_FOUND");
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    const detail = (body as { error?: { message?: string } }).error?.message ?? response.status;
+    throw new Error(`GEMINI_ERROR:${detail}`);
+  }
 
   const data = await response.json();
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-
-  // Strip markdown fences if Gemini wraps it anyway
   const cleaned = text.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/```\s*$/i, "").trim();
   return JSON.parse(cleaned) as VoiceFlowResult;
+}
+
+async function callGemini(apiKey: string, transcript: string): Promise<VoiceFlowResult> {
+  let lastErr: Error = new Error("No models tried");
+  for (const model of GEMINI_MODELS) {
+    try {
+      return await callGeminiModel(apiKey, model, transcript);
+    } catch (err) {
+      lastErr = err instanceof Error ? err : new Error(String(err));
+      if (lastErr.message === "RATE_LIMIT") throw lastErr; // don't retry on rate limit
+      // MODEL_NOT_FOUND or other error → try next model
+    }
+  }
+  throw lastErr;
 }
 
 // ── Heuristic fallback parser ─────────────────────────────────────────────────
@@ -266,9 +276,9 @@ export function VoiceToFlow({ theme: t, onConfirm, onClose }: VoiceToFlowProps) 
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       if (msg === "RATE_LIMIT") {
-        setErrorMsg("Limite Gemini raggiunto. Uso il parser locale come alternativa.");
+        setErrorMsg("Rate limit Gemini (max 15 req/min sul free tier). Riprova tra un minuto oppure usa il parser locale.");
       } else {
-        setErrorMsg(`Errore Gemini (${msg}). Uso il parser locale come alternativa.`);
+        setErrorMsg(`Gemini non disponibile: ${msg.replace("GEMINI_ERROR:", "")}. Uso il parser locale.`);
       }
       const fallback = parseHeuristic(text);
       setPreview(fallback);
