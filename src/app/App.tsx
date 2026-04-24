@@ -20,6 +20,8 @@ import { LoadingOverlay } from "./components/flowmapper/LoadingOverlay";
 import type { LoadingAlert, LoadingProgress } from "./components/flowmapper/LoadingOverlay";
 import type { ProgressCallback, AlertCallback } from "./components/flowmapper/figma-api";
 import { LogicFlowBuilder } from "./components/flowmapper/LogicFlowBuilder";
+import { VoiceToFlow } from "./components/flowmapper/VoiceToFlow";
+import type { VoiceFlowResult } from "./components/flowmapper/VoiceToFlow";
 import type { LogicFlowResult } from "./components/flowmapper/LogicFlowBuilder";
 import { FlowValidator } from "./components/flowmapper/FlowValidator";
 import { FlowTemplates } from "./components/flowmapper/FlowTemplates";
@@ -137,6 +139,7 @@ function AppInner() {
 
   // Logic Flow Builder modal
   const [logicBuilderOpen, setLogicBuilderOpen] = useState(false);
+  const [voiceToFlowOpen, setVoiceToFlowOpen] = useState(false);
 
   // New feature modals
   const [validatorOpen, setValidatorOpen] = useState(false);
@@ -935,6 +938,16 @@ function AppInner() {
     setSelectedItem(null);
     setScreens(result.screens);
     setConnections(result.connections);
+    pendingZoomToFit.current = true;
+  }, []);
+
+  const handleVoiceFlowConfirm = useCallback((result: VoiceFlowResult) => {
+    setVoiceToFlowOpen(false);
+    setError(null);
+    setSelectedItem(null);
+    setScreens(result.screens);
+    setConnections(result.connections);
+    if (result.sections) setSections(result.sections);
     pendingZoomToFit.current = true;
   }, []);
 
@@ -2329,6 +2342,7 @@ function AppInner() {
           onOpenFlowBuilder={() => { setScannerUrl(lastMakeUrl || ""); }}
           onOpenTemplates={() => setTemplatesOpen(true)}
           onOpenFlowDoc={() => setFlowDocModalOpen(true)}
+          onOpenVoiceToFlow={() => setVoiceToFlowOpen(true)}
           onOpenValidator={() => setValidatorOpen(true)}
           onOpenJsonModal={() => setJsonModalOpen(true)}
           onExportPDF={handleExportPDF}
@@ -2704,6 +2718,15 @@ function AppInner() {
           onClose={() => setLogicBuilderOpen(false)}
           initialScreens={screens.length > 0 ? screens : undefined}
           initialConnections={connections.length > 0 ? connections : undefined}
+        />
+      )}
+
+      {/* Voice to Flow modal */}
+      {voiceToFlowOpen && (
+        <VoiceToFlow
+          theme={t}
+          onConfirm={handleVoiceFlowConfirm}
+          onClose={() => setVoiceToFlowOpen(false)}
         />
       )}
 
