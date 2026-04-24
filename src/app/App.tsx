@@ -22,6 +22,7 @@ import type { ProgressCallback, AlertCallback } from "./components/flowmapper/fi
 import { LogicFlowBuilder } from "./components/flowmapper/LogicFlowBuilder";
 import { VoiceToFlow } from "./components/flowmapper/VoiceToFlow";
 import type { VoiceFlowResult } from "./components/flowmapper/VoiceToFlow";
+import { FirstTour, TOUR_LS_KEY } from "./components/flowmapper/FirstTour";
 import type { LogicFlowResult } from "./components/flowmapper/LogicFlowBuilder";
 import { FlowValidator } from "./components/flowmapper/FlowValidator";
 import { FlowTemplates } from "./components/flowmapper/FlowTemplates";
@@ -140,6 +141,9 @@ function AppInner() {
   // Logic Flow Builder modal
   const [logicBuilderOpen, setLogicBuilderOpen] = useState(false);
   const [voiceToFlowOpen, setVoiceToFlowOpen] = useState(false);
+
+  // First Tour — show automatically if never seen
+  const [tourOpen, setTourOpen] = useState(() => !localStorage.getItem(TOUR_LS_KEY));
 
   // New feature modals
   const [validatorOpen, setValidatorOpen] = useState(false);
@@ -2343,6 +2347,7 @@ function AppInner() {
           onOpenTemplates={() => setTemplatesOpen(true)}
           onOpenFlowDoc={() => setFlowDocModalOpen(true)}
           onOpenVoiceToFlow={() => setVoiceToFlowOpen(true)}
+          onOpenTour={() => setTourOpen(true)}
           onOpenValidator={() => setValidatorOpen(true)}
           onOpenJsonModal={() => setJsonModalOpen(true)}
           onExportPDF={handleExportPDF}
@@ -2767,6 +2772,11 @@ function AppInner() {
           onImport={handleFlowDocImport}
           onClose={() => setFlowDocModalOpen(false)}
         />
+      )}
+
+      {/* First Tour modal */}
+      {tourOpen && (
+        <FirstTour onClose={() => setTourOpen(false)} />
       )}
 
       {/* Loading overlay */}

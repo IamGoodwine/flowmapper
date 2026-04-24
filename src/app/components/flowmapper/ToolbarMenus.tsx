@@ -25,6 +25,7 @@ import {
   Moon,
   FolderArchive,
   Mic,
+  MapIcon,
 } from "lucide-react";
 import { useTheme } from "./ThemeContext";
 
@@ -401,6 +402,8 @@ export interface ToolbarProps {
   onExportPDF: () => void;
   onExportSVG: () => void;
   onExportZip: () => void;
+  // Tour
+  onOpenTour: () => void;
   // Layout
   onSmartLayout: () => void;
   onSmartLayoutHorizontal: () => void;
@@ -431,6 +434,7 @@ export function Toolbar({
   onExportPDF,
   onExportSVG,
   onExportZip,
+  onOpenTour,
   onSmartLayout,
   onSmartLayoutHorizontal,
   onZoomIn,
@@ -634,6 +638,14 @@ export function Toolbar({
           sublabel="Tutto il codice pronto per GitHub"
           onClick={onExportZip}
           accent="#34d399"
+        />
+        <MenuSeparator />
+        <MenuItem
+          icon={<MapIcon size={15} />}
+          label="Tour guidato"
+          sublabel="Rivedi le funzioni principali di FlowMapper"
+          onClick={onOpenTour}
+          accent="#6366f1"
         />
         <MenuSeparator />
         <MenuLabel>Analisi</MenuLabel>
