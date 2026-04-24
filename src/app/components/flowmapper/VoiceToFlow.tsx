@@ -53,6 +53,31 @@ Regole:
 
 const sleep = (ms: number) => new Promise(res => setTimeout(res, ms));
 
+/** Verifica la chiave e restituisce i modelli disponibili */
+async function checkApiKey(apiKey: string): Promise<{ ok: boolean; models: string[]; error: string }> {
+  try {
+    const res = await fetch(`${GEMINI_BASE}?key=${apiKey}`);
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const msg = (body as { error?: { message?: string; status?: string } }).error?.message ?? `HTTP ${res.status}`;
+      const status = (body as { error?: { status?: string } }).error?.status ?? "";
+      if (res.status === 400 || res.status === 401 || status === "INVALID_ARGUMENT") {
+        return { ok: false, models: [], error: "API key non valida. Verificala su aistudio.google.com." };
+      }
+      if (res.status === 403) {
+        return { ok: false, models: [], error: "Accesso negato. Assicurati che la chiave sia di AI Studio (non Google Cloud Console) o che il Generative Language API sia abilitato." };
+      }
+      return { ok: false, models: [], error: msg };
+    }
+    const models: string[] = ((body as { models?: { name: string }[] }).models ?? [])
+      .map(m => m.name.replace("models/", ""))
+      .filter(n => n.includes("gemini") && n.includes("flash"));
+    return { ok: true, models, error: "" };
+  } catch {
+    return { ok: false, models: [], error: "Errore di rete. Controlla la connessione." };
+  }
+}
+
 async function callGeminiModel(apiKey: string, model: string, transcript: string): Promise<VoiceFlowResult> {
   const response = await fetch(`${GEMINI_BASE}/${model}:generateContent?key=${apiKey}`, {
     method: "POST",
@@ -87,11 +112,12 @@ async function callGeminiModel(apiKey: string, model: string, transcript: string
 async function callGemini(
   apiKey: string,
   transcript: string,
-  onRetry?: (msg: string) => void
+  onRetry?: (msg: string) => void,
+  models: string[] = GEMINI_MODELS
 ): Promise<VoiceFlowResult> {
   let lastErr: Error = new Error("No models tried");
 
-  for (const model of GEMINI_MODELS) {
+  for (const model of models) {
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
       try {
         return await callGeminiModel(apiKey, model, transcript);
@@ -299,14 +325,26 @@ export function VoiceToFlow({ theme: t, onConfirm, onClose }: VoiceToFlowProps) 
     setPreview(null);
 
     try {
-      const result = await callGemini(apiKey, text, (msg) => setErrorMsg(msg));
+      // Pre-flight: verifica chiave e scopri modelli disponibili
+      setErrorMsg("Verifica API key…");
+      const check = await checkApiKey(apiKey);
+      if (!check.ok) {
+        setErrorMsg(check.error);
+        setPreview(parseHeuristic(text));
+        setStatus("fallback");
+        return;
+      }
+      const modelsToUse = check.models.length > 0 ? check.models : GEMINI_MODELS;
+      setErrorMsg(`Connesso — uso ${modelsToUse[0]}…`);
+
+      const result = await callGemini(apiKey, text, (msg) => setErrorMsg(msg), modelsToUse);
       setPreview(result);
       setStatus("success");
       setErrorMsg("");
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       if (msg.startsWith("RETRIABLE:")) {
-        setErrorMsg(`Gemini sovraccarico dopo ${MAX_RETRIES} tentativi su tutti i modelli. Usa il parser locale o riprova tra qualche minuto.`);
+        setErrorMsg(`Gemini sovraccarico dopo ${MAX_RETRIES} tentativi. Riprova tra qualche minuto o usa il parser locale.`);
       } else {
         setErrorMsg(`Gemini non disponibile: ${msg.replace("GEMINI_ERROR:", "")}. Uso il parser locale.`);
       }
