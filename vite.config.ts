@@ -3,8 +3,10 @@ import path from 'path'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 
-export default defineConfig({
-  base: '/flowmapper/',
+export default defineConfig(({ command }) => ({
+  // In dev (serve) use '/' so localhost:5173/ works correctly.
+  // In production build use '/flowmapper/' for GitHub Pages.
+  base: command === 'build' ? '/flowmapper/' : '/',
   plugins: [
     // The React and Tailwind plugins are both required for Make, even if
     // Tailwind is not being actively used – do not remove them
@@ -20,4 +22,4 @@ export default defineConfig({
 
   // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
   assetsInclude: ['**/*.svg', '**/*.csv'],
-})
+}))

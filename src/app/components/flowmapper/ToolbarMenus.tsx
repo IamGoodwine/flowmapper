@@ -24,6 +24,7 @@ import {
   Sun,
   Moon,
   FolderArchive,
+  Mic,
 } from "lucide-react";
 import { useTheme } from "./ThemeContext";
 
@@ -392,6 +393,7 @@ export interface ToolbarProps {
   onOpenFlowBuilder: () => void;
   onOpenTemplates: () => void;
   onOpenFlowDoc: () => void;
+  onOpenVoiceToFlow: () => void;
   // Validate
   onOpenValidator: () => void;
   // Import/Export
@@ -423,6 +425,7 @@ export function Toolbar({
   onOpenFlowBuilder,
   onOpenTemplates,
   onOpenFlowDoc,
+  onOpenVoiceToFlow,
   onOpenValidator,
   onOpenJsonModal,
   onExportPDF,
@@ -457,6 +460,13 @@ export function Toolbar({
         }
       >
         <MenuLabel>Crea un flusso</MenuLabel>
+        <MenuItem
+          icon={<Mic size={15} />}
+          label="Voice to Flow"
+          sublabel="Descrivi il flusso a voce, l'AI lo genera"
+          onClick={onOpenVoiceToFlow}
+          accent="#22c55e"
+        />
         <MenuItem
           icon={<BookOpen size={15} />}
           label="Study Docs (FlowDoc)"
