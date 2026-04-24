@@ -318,7 +318,7 @@ function AppInner() {
     (e: WheelEvent) => {
       e.preventDefault();
       if (editingEdge) return;
-      const rect = canvasContainerRef.current?.getBoundingClientRect();
+      const rect = svgRef.current?.getBoundingClientRect();
       if (!rect) return;
 
       if (e.ctrlKey || e.metaKey) {
