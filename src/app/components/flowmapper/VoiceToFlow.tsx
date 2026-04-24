@@ -19,7 +19,7 @@ interface VoiceToFlowProps {
 
 // ── Gemini API ────────────────────────────────────────────────────────────────
 
-const GEMINI_MODEL = "gemini-1.5-flash";
+const GEMINI_MODEL = "gemini-2.0-flash";
 const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 const LS_KEY = "flowmapper_gemini_key";
 
@@ -438,7 +438,7 @@ export function VoiceToFlow({ theme: t, onConfirm, onClose }: VoiceToFlowProps) 
                 }
               </button>
               <button
-                style={{ ...btn(t.surface, t.textMuted), border: `1px solid ${t.surfaceBorder}` }}
+                style={{ ...btn(t.surface, t.text), border: `1px solid ${t.accent}`, opacity: transcript.trim() ? 1 : 0.4 }}
                 onClick={handleHeuristic}
                 disabled={!transcript.trim()}
                 title="Usa il parser locale senza AI"
