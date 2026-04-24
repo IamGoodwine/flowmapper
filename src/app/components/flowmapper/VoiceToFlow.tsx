@@ -19,8 +19,14 @@ interface VoiceToFlowProps {
 
 // ── Gemini API ────────────────────────────────────────────────────────────────
 
-const GEMINI_MODELS = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-flash-latest"];
+const GEMINI_MODELS = [
+  "gemini-2.0-flash",
+  "gemini-1.5-flash",
+  "gemini-1.5-flash-latest",
+  "gemini-1.5-flash-8b",
+];
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
+const MAX_RETRIES = 3;
 const LS_KEY = "flowmapper_gemini_key";
 
 const SYSTEM_PROMPT = `Sei un assistente esperto in UX che converte descrizioni verbali di flussi utente in JSON strutturato.
@@ -45,6 +51,8 @@ Regole:
 - Gli id devono essere stringhe univoche (s1, s2, ... per screen; c1, c2, ... per connessioni)
 - Restituisci SOLO il JSON grezzo, senza markdown, senza backtick, senza spiegazioni.`;
 
+const sleep = (ms: number) => new Promise(res => setTimeout(res, ms));
+
 async function callGeminiModel(apiKey: string, model: string, transcript: string): Promise<VoiceFlowResult> {
   const response = await fetch(`${GEMINI_BASE}/${model}:generateContent?key=${apiKey}`, {
     method: "POST",
@@ -55,8 +63,15 @@ async function callGeminiModel(apiKey: string, model: string, transcript: string
     })
   });
 
-  if (response.status === 429) throw new Error("RATE_LIMIT");
   if (response.status === 404) throw new Error("MODEL_NOT_FOUND");
+
+  // 429 = rate limit, 503 = overloaded — entrambi retriable
+  if (response.status === 429 || response.status === 503) {
+    const body = await response.json().catch(() => ({}));
+    const msg = (body as { error?: { message?: string } }).error?.message ?? `HTTP ${response.status}`;
+    throw new Error(`RETRIABLE:${msg}`);
+  }
+
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
     const detail = (body as { error?: { message?: string } }).error?.message ?? response.status;
@@ -69,15 +84,29 @@ async function callGeminiModel(apiKey: string, model: string, transcript: string
   return JSON.parse(cleaned) as VoiceFlowResult;
 }
 
-async function callGemini(apiKey: string, transcript: string): Promise<VoiceFlowResult> {
+async function callGemini(
+  apiKey: string,
+  transcript: string,
+  onRetry?: (msg: string) => void
+): Promise<VoiceFlowResult> {
   let lastErr: Error = new Error("No models tried");
+
   for (const model of GEMINI_MODELS) {
-    try {
-      return await callGeminiModel(apiKey, model, transcript);
-    } catch (err) {
-      lastErr = err instanceof Error ? err : new Error(String(err));
-      if (lastErr.message === "RATE_LIMIT") throw lastErr; // don't retry on rate limit
-      // MODEL_NOT_FOUND or other error → try next model
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      try {
+        return await callGeminiModel(apiKey, model, transcript);
+      } catch (err) {
+        lastErr = err instanceof Error ? err : new Error(String(err));
+
+        if (lastErr.message.startsWith("RETRIABLE:")) {
+          const waitSec = Math.pow(2, attempt); // 1s, 2s, 4s
+          onRetry?.(`Gemini sovraccarico — riprovo con ${model} tra ${waitSec}s... (tentativo ${attempt + 1}/${MAX_RETRIES})`);
+          await sleep(waitSec * 1000);
+          continue; // retry same model
+        }
+
+        break; // MODEL_NOT_FOUND or other → try next model
+      }
     }
   }
   throw lastErr;
@@ -270,13 +299,14 @@ export function VoiceToFlow({ theme: t, onConfirm, onClose }: VoiceToFlowProps) 
     setPreview(null);
 
     try {
-      const result = await callGemini(apiKey, text);
+      const result = await callGemini(apiKey, text, (msg) => setErrorMsg(msg));
       setPreview(result);
       setStatus("success");
+      setErrorMsg("");
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      if (msg === "RATE_LIMIT") {
-        setErrorMsg("Rate limit Gemini (max 15 req/min sul free tier). Riprova tra un minuto oppure usa il parser locale.");
+      if (msg.startsWith("RETRIABLE:")) {
+        setErrorMsg(`Gemini sovraccarico dopo ${MAX_RETRIES} tentativi su tutti i modelli. Usa il parser locale o riprova tra qualche minuto.`);
       } else {
         setErrorMsg(`Gemini non disponibile: ${msg.replace("GEMINI_ERROR:", "")}. Uso il parser locale.`);
       }
